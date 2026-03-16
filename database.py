@@ -12,7 +12,7 @@ MYSQLPORT = os.getenv("MYSQLPORT")
 
 SQLALCHEMY_DATABASE_URL = "mysql://root:GcWFEBxxoWfBGptDERoJDJVAeFauNyDd@switchyard.proxy.rlwy.net:28218/railway"
 
-engine = create_engine(DATABASE_URL)
+engine = create_engine(SQLALCHEMY_DATABASE_URL)
 
 SessionLocal = sessionmaker(
     autocommit=False,
