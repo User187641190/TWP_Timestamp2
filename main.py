@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 import models
 import schemas
 
-from database import engine, get_db, base
+from database import engine, get_db, Base
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
