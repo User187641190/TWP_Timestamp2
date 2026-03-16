@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
+from fastapi.middleware.cors import CORSMiddleware
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -15,15 +16,15 @@ from jose import JWTError, jwt
 
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="WMS System API (Refactored)")
+
+app = FastAPI()
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],  
-    allow_headers=["*"],  
+    allow_origins=["https://user187641190.github.io"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
-
 
 SECRET_KEY = "YOUR_SUPER_SECRET_KEY_OAT" # ในระบบจริงควรใช้รหัสที่ซับซ้อนกว่านี้
 ALGORITHM = "HS256"
