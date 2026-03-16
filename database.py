@@ -10,7 +10,7 @@ MYSQLPASSWORD = os.getenv("MYSQLPASSWORD")
 MYSQLDATABASE = os.getenv("MYSQLDATABASE")
 MYSQLPORT = os.getenv("MYSQLPORT")
 
-SQLALCHEMY_DATABASE_URL = "mysql://root:GcWFEBxxoWfBGptDERoJDJVAeFauNyDd@switchyard.proxy.rlwy.net:28218/railway"
+SQLALCHEMY_DATABASE_URL = "mysql+pymysql://root:GcWFEBxxoWfBGptDERoJDJVAeFauNyDd@switchyard.proxy.rlwy.net:28218/railway"
 
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 
