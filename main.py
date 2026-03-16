@@ -95,7 +95,7 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
 
 @app.get("/")
 def read_root():
-    return {"message": "✅ API is running with the new schema!"}
+    return {"message": "✅ API is running with the new schema!",}
 
 # ---- LOGIN ----
 @app.post("/login")
@@ -132,11 +132,11 @@ def read_users_me(current_user: models.User = Depends(get_current_user)):
 
 # --- 1. Roles ---
 @app.get("/roles", response_model=list[schemas.RoleResponse])
-def get_roles(db: Session = Depends(get_db)):
+def get_roles(current_user: str = Depends(get_current_user), db: Session = Depends(get_db)):
     return db.query(models.Role).all()
 
 @app.post("/roles", response_model=schemas.RoleResponse)
-def create_role(role: schemas.RoleCreate, db: Session = Depends(get_db)):
+def create_role(role: schemas.RoleCreate, current_user: str = Depends(get_current_user), db: Session = Depends(get_db)):
     db_role = models.Role(**role.dict())
     db.add(db_role)
     db.commit()
@@ -145,11 +145,11 @@ def create_role(role: schemas.RoleCreate, db: Session = Depends(get_db)):
 
 # --- 2. Employees ---
 @app.get("/employees", response_model=list[schemas.EmployeeResponse])
-def get_employees(db: Session = Depends(get_db)):
+def get_employees(current_user: str = Depends(get_current_user), db: Session = Depends(get_db)):
     return db.query(models.Employee).all()
 
 @app.post("/employees", response_model=schemas.EmployeeResponse)
-def create_employee(emp: schemas.EmployeeCreate, db: Session = Depends(get_db)):
+def create_employee(emp: schemas.EmployeeCreate, current_user: str = Depends(get_current_user), db: Session = Depends(get_db)):
     db_emp = models.Employee(**emp.dict())
     db.add(db_emp)
     db.commit()
@@ -158,11 +158,11 @@ def create_employee(emp: schemas.EmployeeCreate, db: Session = Depends(get_db)):
 
 # --- 3. Customers ---
 @app.get("/customers", response_model=list[schemas.CustomerResponse])
-def get_customers(db: Session = Depends(get_db)):
+def get_customers(current_user: str = Depends(get_current_user), db: Session = Depends(get_db)):
     return db.query(models.Customer).all()
 
 @app.post("/customers", response_model=schemas.CustomerResponse)
-def create_customer(customer: schemas.CustomerCreate, db: Session = Depends(get_db)):
+def create_customer(customer: schemas.CustomerCreate, current_user: str = Depends(get_current_user), db: Session = Depends(get_db)):
     db_customer = models.Customer(**customer.dict())
     db.add(db_customer)
     db.commit()
@@ -171,11 +171,11 @@ def create_customer(customer: schemas.CustomerCreate, db: Session = Depends(get_
 
 # --- 4. Vehicles ---
 @app.get("/vehicles", response_model=list[schemas.VehicleResponse])
-def get_vehicles(db: Session = Depends(get_db)):
+def get_vehicles(current_user: str = Depends(get_current_user), db: Session = Depends(get_db)):
     return db.query(models.Vehicle).all()
 
 @app.post("/vehicles", response_model=schemas.VehicleResponse)
-def create_vehicle(vehicle: schemas.VehicleCreate, db: Session = Depends(get_db)):
+def create_vehicle(vehicle: schemas.VehicleCreate, current_user: str = Depends(get_current_user), db: Session = Depends(get_db)):
     db_vehicle = models.Vehicle(**vehicle.dict())
     db.add(db_vehicle)
     db.commit()
@@ -184,11 +184,11 @@ def create_vehicle(vehicle: schemas.VehicleCreate, db: Session = Depends(get_db)
 
 # --- 5. Warehouses ---
 @app.get("/warehouses", response_model=list[schemas.WarehouseResponse])
-def get_warehouses(db: Session = Depends(get_db)):
+def get_warehouses(current_user: str = Depends(get_current_user), db: Session = Depends(get_db)):
     return db.query(models.Warehouse).all()
 
 @app.post("/warehouses", response_model=schemas.WarehouseResponse)
-def create_warehouse(warehouse: schemas.WarehouseCreate, db: Session = Depends(get_db)):
+def create_warehouse(warehouse: schemas.WarehouseCreate, current_user: str = Depends(get_current_user), db: Session = Depends(get_db)):
     db_warehouse = models.Warehouse(**warehouse.dict())
     db.add(db_warehouse)
     db.commit()
@@ -197,11 +197,11 @@ def create_warehouse(warehouse: schemas.WarehouseCreate, db: Session = Depends(g
 
 # --- 6. Products ---
 @app.get("/products", response_model=list[schemas.ProductResponse])
-def get_products(db: Session = Depends(get_db)):
+def get_products(current_user: str = Depends(get_current_user), db: Session = Depends(get_db)):
     return db.query(models.Product).all()
 
 @app.post("/products", response_model=schemas.ProductResponse)
-def create_product(product: schemas.ProductCreate, db: Session = Depends(get_db)):
+def create_product(product: schemas.ProductCreate, current_user: str = Depends(get_current_user), db: Session = Depends(get_db)):
     db_product = models.Product(**product.dict())
     db.add(db_product)
     db.commit()
@@ -210,11 +210,11 @@ def create_product(product: schemas.ProductCreate, db: Session = Depends(get_db)
 
 # --- 7. Users ---
 @app.get("/users", response_model=list[schemas.UserResponse])
-def get_users(db: Session = Depends(get_db)):
+def get_users(current_user: str = Depends(get_current_user), db: Session = Depends(get_db)):
     return db.query(models.User).all()
 
 @app.post("/users", response_model=schemas.UserResponse)
-def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
+def create_user(user: schemas.UserCreate, current_user: str = Depends(get_current_user), db: Session = Depends(get_db)):
     # 💡 หมายเหตุ: ระบบจริงควรนำ user.password ไปเข้ารหัส (Hash) ก่อนบันทึกลง password_hash
     db_user = models.User(
         username=user.username,
@@ -229,7 +229,7 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
 
 # --- 8. Delivery Bills ---
 @app.get("/delivery-bills", response_model=list[schemas.DeliveryBillResponse])
-def get_delivery_bills(db: Session = Depends(get_db)):
+def get_delivery_bills(current_user: str = Depends(get_current_user), db: Session = Depends(get_db)):
     # 1. ดึงบิลทั้งหมดมาก่อน
     bills = db.query(models.DeliveryBill).all()
     
@@ -246,7 +246,7 @@ def get_delivery_bills(db: Session = Depends(get_db)):
     return bills
 
 @app.post("/delivery-bills", response_model=schemas.DeliveryBillResponse)
-def create_delivery_bill(bill: schemas.DeliveryBillCreate, db: Session = Depends(get_db)):
+def create_delivery_bill(bill: schemas.DeliveryBillCreate, current_user: str = Depends(get_current_user), db: Session = Depends(get_db)):
     db_bill = models.DeliveryBill(**bill.dict())
     db.add(db_bill)
     db.commit()
@@ -257,7 +257,8 @@ def create_delivery_bill(bill: schemas.DeliveryBillCreate, db: Session = Depends
 @app.put("/delivery-bills/{bill_id}/status")
 def update_delivery_status(
     bill_id: int, 
-    payload: schemas.DeliveryLogStatusUpdate, 
+    payload: schemas.DeliveryLogStatusUpdate,
+    current_user: str = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     # 1. เช็คก่อนว่ามีบิลหมายเลขนี้อยู่จริงๆ ไหม
@@ -281,11 +282,11 @@ def update_delivery_status(
 
 # --- 9. Delivery Items ---
 @app.get("/delivery-items", response_model=list[schemas.DeliveryItemResponse])
-def get_delivery_items(db: Session = Depends(get_db)):
+def get_delivery_items(current_user: str = Depends(get_current_user), db: Session = Depends(get_db)):
     return db.query(models.DeliveryItem).all()
 
 @app.post("/delivery-items", response_model=schemas.DeliveryItemResponse)
-def create_delivery_item(item: schemas.DeliveryItemCreate, db: Session = Depends(get_db)):
+def create_delivery_item(item: schemas.DeliveryItemCreate, current_user: str = Depends(get_current_user), db: Session = Depends(get_db)):
     db_item = models.DeliveryItem(**item.dict())
     db.add(db_item)
     db.commit()
@@ -294,11 +295,11 @@ def create_delivery_item(item: schemas.DeliveryItemCreate, db: Session = Depends
 
 # --- 10. Delivery Logs ---
 @app.get("/delivery-logs", response_model=list[schemas.DeliveryLogResponse])
-def get_delivery_logs(db: Session = Depends(get_db)):
+def get_delivery_logs(current_user: str = Depends(get_current_user), db: Session = Depends(get_db)):
     return db.query(models.DeliveryLog).all()
 
 @app.post("/delivery-logs", response_model=schemas.DeliveryLogResponse)
-def create_delivery_log(log: schemas.DeliveryLogCreate, db: Session = Depends(get_db)):
+def create_delivery_log(log: schemas.DeliveryLogCreate, current_user: str = Depends(get_current_user), db: Session = Depends(get_db)):
     db_log = models.DeliveryLog(**log.dict())
     db.add(db_log)
     db.commit()
