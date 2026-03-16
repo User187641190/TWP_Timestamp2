@@ -13,7 +13,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
 
-models.Base.metadata.create_all(bind=engine)
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="WMS System API (Refactored)")
 app.add_middleware(
