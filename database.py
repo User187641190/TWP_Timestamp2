@@ -4,7 +4,7 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "mysql://root:GcWFEBxxoWfBGptDERoJDJVAeFauNyDd@mysql.railway.internal:3306/railway"
+    "mysql+pymysql://root:GcWFEBxxoWfBGptDERoJDJVAeFauNyDd@mysql.railway.internal:3306/railway"
 )
 
 engine = create_engine(
