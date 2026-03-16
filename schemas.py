@@ -7,10 +7,6 @@ from decimal import Decimal
 class Config:
         from_attributes = True
 
-class OrmBase(BaseModel):
-    class Config:
-        from_attributes = True
-
 # =========================
 # 1. Roles
 # =========================
