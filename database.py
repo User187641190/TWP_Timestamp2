@@ -1,12 +1,25 @@
-#<<<<<<< HEAD
+
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+import os
 
-SQLALCHEMY_DATABASE_URL = "mysql+pymysql://root:12345678@mysql_db:3306/delivery_db"
+MYSQLHOST = os.getenv("MYSQLHOST")
+MYSQLUSER = os.getenv("MYSQLUSER")
+MYSQLPASSWORD = os.getenv("MYSQLPASSWORD")
+MYSQLDATABASE = os.getenv("MYSQLDATABASE")
+MYSQLPORT = os.getenv("MYSQLPORT")
 
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+SQLALCHEMY_DATABASE_URL = "mysql://root:GcWFEBxxoWfBGptDERoJDJVAeFauNyDd@switchyard.proxy.rlwy.net:28218/railway"
+
+engine = create_engine(DATABASE_URL)
+
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine
+)
+
 
 Base = declarative_base()
 
