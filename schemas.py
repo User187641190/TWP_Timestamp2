@@ -4,6 +4,9 @@ from datetime import datetime
 from decimal import Decimal
 
 # --- Configuration พื้นฐานสำหรับการแปลง SQLAlchemy Model เป็น JSON ---
+class Config:
+        from_attributes = True
+
 class OrmBase(BaseModel):
     class Config:
         from_attributes = True
