@@ -1,0 +1,52 @@
+#<<<<<<< HEAD
+import sys
+from sqlalchemy import text
+from database import SessionLocal
+
+def delete_all_data():
+    print("⚠️  WARNING: กำลังจะลบข้อมูลทั้งหมดใน Database!")
+    print("ข้อมูลจะหายถาวร กู้คืนไม่ได้ (โครงสร้างตารางจะยังอยู่)")
+    confirm = input("คุณแน่ใจหรือไม่? (พิมพ์ 'y' เพื่อยืนยัน): ")
+
+    if confirm.lower() != 'y':
+        print("❌ ยกเลิกการทำงาน")
+        return
+
+    db = SessionLocal()
+    try:
+        # รายชื่อตารางที่ต้องการลบข้อมูล
+        # 🚨 สำคัญ: ต้องเรียงจาก "ตารางลูก" (ที่ไปเกาะเขา) -> ไปหา "ตารางแม่" (ที่เป็นหลัก)
+        # เพื่อป้องกัน Error: Integrity constraint violated (Foreign Key)
+        tables = [
+            "Delivery_Time_log",  # ลบ Log ก่อน
+            "Bill_item",          # ลบรายการของในบิล
+            "Delivery_bill",      # ลบตัวบิล
+            "Role_permissios",    # ลบตารางเชื่อม Role-Permission (ถ้ามี)
+            "User",               # ลบ User (เพราะผูกกับ Employee/Role)
+            "Employee",           # ลบ Employee
+            "Vehicle",            # ลบ รถ
+            "Product",            # ลบ สินค้า
+            "Role",               # ลบ Role
+            "Permission"          # ลบ Permission
+        ]
+
+        for table in tables:
+            try:
+                # ใช้ DELETE เพื่อลบข้อมูล
+                print(f"🧹 กำลังล้างข้อมูลในตาราง: {table}...")
+                db.execute(text(f'DELETE FROM "{table}"'))
+            except Exception as table_error:
+                # กรณีตารางนี้ไม่มีอยู่จริง หรือมีปัญหา ข้ามไปก่อน
+                print(f"   ⚠️  ข้าม {table}: {table_error}")
+
+        db.commit()
+        print("\n✅ ลบข้อมูลเสร็จสิ้นทุกตารางแล้ว! (Database สะอาดเอี่ยม)")
+
+    except Exception as e:
+        print(f"\n❌ เกิดข้อผิดพลาดร้ายแรง: {e}")
+        db.rollback()
+    finally:
+        db.close()
+
+if __name__ == "__main__":
+    delete_all_data()

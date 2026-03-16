@@ -1,0 +1,305 @@
+from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
+
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+
+import models
+import schemas
+
+from database import engine, get_db
+from datetime import datetime, timedelta
+from typing import Optional
+from jose import JWTError, jwt
+
+models.Base.metadata.create_all(bind=engine)
+
+app = FastAPI(title="WMS System API (Refactored)")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],  
+    allow_headers=["*"],  
+)
+
+
+SECRET_KEY = "YOUR_SUPER_SECRET_KEY_OAT" # ในระบบจริงควรใช้รหัสที่ซับซ้อนกว่านี้
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 # Token หมดอายุใน 60 นาที
+
+# ตัวที่ทำให้ Swagger UI มีปุ่ม Authorize
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+
+
+# API ดึงข้อมูลจาก View (Dynamic Endpoint)
+@app.get("/api/views/{view_name}")
+def get_view_data(view_name: str, db: Session = Depends(get_db)):
+    # ป้องกัน SQL Injection โดยเช็คว่าชื่อ View อยู่ในรายการที่อนุญาตหรือไม่
+    allowed_views = [
+        "vw_user_roles_details", "vw_warehouse_inventory_value",
+        "vw_delivery_bill_info", "vw_bill_total_value",
+        "vw_employee_delivery_stats", "vw_latest_delivery_status",
+        "vw_vehicle_usage_summary", "vw_customer_order_summary",
+        "vw_low_stock_products", "vw_master_delivery_dashboard"
+    ]
+    
+    if view_name not in allowed_views:
+        raise HTTPException(status_code=400, detail="ไม่พบ View ที่ต้องการ")
+    
+    # รัน SQL ดึงข้อมูลจาก View
+    query = text(f"SELECT * FROM {view_name}")
+    result = db.execute(query).mappings().all()
+    
+    return result
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=15)
+    
+    to_encode.update({"exp": expire})
+    # สร้าง JWT Token
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+# --- ฟังก์ชันถอดรหัส Token และดึงข้อมูล User ปัจจุบัน ---
+def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="ไม่สามารถยืนยันตัวตนได้ (Token อาจจะหมดอายุหรือไม่ถูกต้อง)",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        # ถอดรหัส Token เพื่อเอา username ออกมา
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+        
+    # เอา username ไปค้นหาใน Database
+    user = db.query(models.User).filter(models.User.username == username).first()
+    if user is None:
+        raise credentials_exception
+    return user
+
+
+
+
+
+@app.get("/")
+def read_root():
+    return {"message": "✅ API is running with the new schema!"}
+
+# ---- LOGIN ----
+@app.post("/login")
+def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.username == form_data.username).first()
+    
+    # เช็ครหัสผ่าน (แบบไม่ได้เข้ารหัสเพื่อเทสกับ Mock Data)
+    if not user or user.password_hash != form_data.password:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Username หรือ Password ไม่ถูกต้อง",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+        
+    # สร้าง Token โดยกำหนดให้อายุ 60 นาที (ตามตั้งค่าด้านบน)
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    
+    # ส่ง username เข้าไปฝังไว้ใน Token
+    access_token = create_access_token(
+        data={"sub": user.username}, expires_delta=access_token_expires
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@app.get("/users/me")
+def read_users_me(current_user: models.User = Depends(get_current_user)):
+    # ส่งข้อมูลผู้ใช้กลับไปให้หน้าเว็บ
+    return {
+        "id": current_user.id,
+        "username": current_user.username,
+        "role_id": current_user.role_id,
+        "employee_id": current_user.employee_id
+    }
+
+
+# --- 1. Roles ---
+@app.get("/roles", response_model=list[schemas.RoleResponse])
+def get_roles(db: Session = Depends(get_db)):
+    return db.query(models.Role).all()
+
+@app.post("/roles", response_model=schemas.RoleResponse)
+def create_role(role: schemas.RoleCreate, db: Session = Depends(get_db)):
+    db_role = models.Role(**role.dict())
+    db.add(db_role)
+    db.commit()
+    db.refresh(db_role)
+    return db_role
+
+# --- 2. Employees ---
+@app.get("/employees", response_model=list[schemas.EmployeeResponse])
+def get_employees(db: Session = Depends(get_db)):
+    return db.query(models.Employee).all()
+
+@app.post("/employees", response_model=schemas.EmployeeResponse)
+def create_employee(emp: schemas.EmployeeCreate, db: Session = Depends(get_db)):
+    db_emp = models.Employee(**emp.dict())
+    db.add(db_emp)
+    db.commit()
+    db.refresh(db_emp)
+    return db_emp
+
+# --- 3. Customers ---
+@app.get("/customers", response_model=list[schemas.CustomerResponse])
+def get_customers(db: Session = Depends(get_db)):
+    return db.query(models.Customer).all()
+
+@app.post("/customers", response_model=schemas.CustomerResponse)
+def create_customer(customer: schemas.CustomerCreate, db: Session = Depends(get_db)):
+    db_customer = models.Customer(**customer.dict())
+    db.add(db_customer)
+    db.commit()
+    db.refresh(db_customer)
+    return db_customer
+
+# --- 4. Vehicles ---
+@app.get("/vehicles", response_model=list[schemas.VehicleResponse])
+def get_vehicles(db: Session = Depends(get_db)):
+    return db.query(models.Vehicle).all()
+
+@app.post("/vehicles", response_model=schemas.VehicleResponse)
+def create_vehicle(vehicle: schemas.VehicleCreate, db: Session = Depends(get_db)):
+    db_vehicle = models.Vehicle(**vehicle.dict())
+    db.add(db_vehicle)
+    db.commit()
+    db.refresh(db_vehicle)
+    return db_vehicle
+
+# --- 5. Warehouses ---
+@app.get("/warehouses", response_model=list[schemas.WarehouseResponse])
+def get_warehouses(db: Session = Depends(get_db)):
+    return db.query(models.Warehouse).all()
+
+@app.post("/warehouses", response_model=schemas.WarehouseResponse)
+def create_warehouse(warehouse: schemas.WarehouseCreate, db: Session = Depends(get_db)):
+    db_warehouse = models.Warehouse(**warehouse.dict())
+    db.add(db_warehouse)
+    db.commit()
+    db.refresh(db_warehouse)
+    return db_warehouse
+
+# --- 6. Products ---
+@app.get("/products", response_model=list[schemas.ProductResponse])
+def get_products(db: Session = Depends(get_db)):
+    return db.query(models.Product).all()
+
+@app.post("/products", response_model=schemas.ProductResponse)
+def create_product(product: schemas.ProductCreate, db: Session = Depends(get_db)):
+    db_product = models.Product(**product.dict())
+    db.add(db_product)
+    db.commit()
+    db.refresh(db_product)
+    return db_product
+
+# --- 7. Users ---
+@app.get("/users", response_model=list[schemas.UserResponse])
+def get_users(db: Session = Depends(get_db)):
+    return db.query(models.User).all()
+
+@app.post("/users", response_model=schemas.UserResponse)
+def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
+    # 💡 หมายเหตุ: ระบบจริงควรนำ user.password ไปเข้ารหัส (Hash) ก่อนบันทึกลง password_hash
+    db_user = models.User(
+        username=user.username,
+        password_hash=user.password, # เก็บชั่วคราวแบบไม่เข้ารหัสไปก่อน
+        role_id=user.role_id,
+        employee_id=user.employee_id
+    )
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
+
+# --- 8. Delivery Bills ---
+@app.get("/delivery-bills", response_model=list[schemas.DeliveryBillResponse])
+def get_delivery_bills(db: Session = Depends(get_db)):
+    # 1. ดึงบิลทั้งหมดมาก่อน
+    bills = db.query(models.DeliveryBill).all()
+    
+    # 2. วนลูปเพื่อหา status ล่าสุดมาแปะใส่แต่ละบิล
+    for bill in bills:
+        latest_log = db.query(models.DeliveryLog).filter(
+            models.DeliveryLog.bill_id == bill.id
+        ).order_by(models.DeliveryLog.id.desc()).first()
+        
+        # 🚨 ยัดค่า status ใส่ object ตรงๆ เลย (เดี๋ยว Schema จะดูดค่านี้ไปเอง)
+        bill.status = latest_log.status_type if latest_log else "Pending"
+        
+    # 3. โยน list ของ bills กลับไปได้เลย ไม่ต้องสร้าง Dictionary แล้ว!
+    return bills
+
+@app.post("/delivery-bills", response_model=schemas.DeliveryBillResponse)
+def create_delivery_bill(bill: schemas.DeliveryBillCreate, db: Session = Depends(get_db)):
+    db_bill = models.DeliveryBill(**bill.dict())
+    db.add(db_bill)
+    db.commit()
+    db.refresh(db_bill)
+    return db_bill
+
+
+@app.put("/delivery-bills/{bill_id}/status")
+def update_delivery_status(
+    bill_id: int, 
+    payload: schemas.DeliveryLogStatusUpdate, 
+    db: Session = Depends(get_db)
+):
+    # 1. เช็คก่อนว่ามีบิลหมายเลขนี้อยู่จริงๆ ไหม
+    bill = db.query(models.DeliveryBill).filter(models.DeliveryBill.id == bill_id).first()
+    if not bill:
+        raise HTTPException(status_code=404, detail="ไม่พบบิลหมายเลขนี้ในระบบ")
+
+    # 🚨 2. สร้าง Log อันใหม่ (Insert) แทนการไปแก้ของเดิม
+    new_log = models.DeliveryLog(
+        bill_id=bill_id,
+        status_type=payload.status_type,      # สถานะใหม่ที่รับมาจากหน้าเว็บ
+        logged_at=datetime.now()         # เวลา ณ ตอนที่กดเปลี่ยนสถานะ
+    )
+    
+    # 3. สั่งเพิ่มลง Database
+    db.add(new_log)
+    db.commit()
+    db.refresh(new_log)
+
+    return {"message": "เพิ่มประวัติสถานะใหม่สำเร็จ", "current_status": new_log.status_type}
+
+# --- 9. Delivery Items ---
+@app.get("/delivery-items", response_model=list[schemas.DeliveryItemResponse])
+def get_delivery_items(db: Session = Depends(get_db)):
+    return db.query(models.DeliveryItem).all()
+
+@app.post("/delivery-items", response_model=schemas.DeliveryItemResponse)
+def create_delivery_item(item: schemas.DeliveryItemCreate, db: Session = Depends(get_db)):
+    db_item = models.DeliveryItem(**item.dict())
+    db.add(db_item)
+    db.commit()
+    db.refresh(db_item)
+    return db_item
+
+# --- 10. Delivery Logs ---
+@app.get("/delivery-logs", response_model=list[schemas.DeliveryLogResponse])
+def get_delivery_logs(db: Session = Depends(get_db)):
+    return db.query(models.DeliveryLog).all()
+
+@app.post("/delivery-logs", response_model=schemas.DeliveryLogResponse)
+def create_delivery_log(log: schemas.DeliveryLogCreate, db: Session = Depends(get_db)):
+    db_log = models.DeliveryLog(**log.dict())
+    db.add(db_log)
+    db.commit()
+    db.refresh(db_log)
+    return db_log

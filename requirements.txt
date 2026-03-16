@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+pymysql
+pydantic
+python-jose[cryptography]
+apscheduler
+pytz
+passlib
+python-multipart
+sqlalchemy
+mysql-connector-python
